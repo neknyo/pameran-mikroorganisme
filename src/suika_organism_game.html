@@ -1,0 +1,401 @@
+
+<div id="game-root" style="display:flex;gap:24px;padding:16px;min-height:600px;font-family:var(--font-sans);background:transparent;">
+
+<div style="display:flex;flex-direction:column;gap:12px;">
+  <div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 16px;min-width:120px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;">Score</div>
+    <div id="score-display" style="font-size:28px;font-weight:500;color:var(--color-text-primary);">0</div>
+    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:4px;">Best: <span id="best-display">0</span></div>
+  </div>
+
+  <div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 16px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;">Next up</div>
+    <div id="next-preview" style="width:60px;height:60px;display:flex;align-items:center;justify-content:center;">
+      <div id="next-circle" style="border-radius:50%;"></div>
+    </div>
+  </div>
+
+  <div style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 16px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;">Hierarki</div>
+    <div id="hierarchy-list" style="display:flex;flex-direction:column;gap:6px;align-items:center;"></div>
+  </div>
+</div>
+
+<div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+  <canvas id="game-canvas" width="340" height="520" style="border-radius:12px;display:block;cursor:crosshair;touch-action:none;"></canvas>
+  <div id="game-msg" style="font-size:13px;color:var(--color-text-secondary);margin-top:8px;text-align:center;">Geser kiri-kanan → klik/tap untuk drop</div>
+</div>
+
+</div>
+
+<div id="overlay" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center;border-radius:12px;">
+  <div style="background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:32px;text-align:center;min-width:220px;">
+    <div style="font-size:20px;font-weight:500;color:var(--color-text-primary);margin-bottom:8px;">Game Over!</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:4px;">Skor kamu:</div>
+    <div id="final-score" style="font-size:36px;font-weight:500;color:var(--color-text-primary);margin-bottom:16px;">0</div>
+    <button id="restart-btn" onclick="restartGame()" style="padding:10px 28px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-primary);font-size:14px;cursor:pointer;">Main lagi</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+const ORGANISM_DATA = [
+  { level:1, r:14, color:'#e53e3e', label:'O1' },
+  { level:2, r:20, color:'#d53f8c', label:'O2' },
+  { level:3, r:28, color:'#00b5d8', label:'O3' },
+  { level:4, r:37, color:'#38a169', label:'O4' },
+  { level:5, r:47, color:'#d69e2e', label:'O5' },
+  { level:6, r:58, color:'#dd6b20', label:'O6' },
+  { level:7, r:70, color:'#c53030', label:'O7' },
+];
+const VIRUS_DATA = { r:14, color:'#1a202c', label:'V' };
+const SPAWNABLE_LEVELS = [1,2,3,4];
+
+const CANVAS_W = 340, CANVAS_H = 520;
+const WALL_T = 20;
+const BOWL_L = 30, BOWL_R = CANVAS_W - 30;
+const BOWL_TOP = 80, BOWL_BOT = CANVAS_H - 20;
+const BOWL_W = BOWL_R - BOWL_L;
+const DROP_Y = 50;
+const DEATH_LINE_Y = BOWL_TOP + 10;
+
+let engine, world, render, runner;
+let bodies = [];
+let score = 0, best = 0;
+let cursorX = CANVAS_W / 2;
+let nextLevel = null;
+let nextIsVirus = false;
+let canDrop = true;
+let gameOver = false;
+let viruses = [];
+let mergeQueue = [];
+let dropCooldown = false;
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+
+function rndSpawnLevel() {
+  return SPAWNABLE_LEVELS[Math.floor(Math.random() * SPAWNABLE_LEVELS.length)];
+}
+function shouldSpawnVirus() {
+  return Math.random() < 0.15;
+}
+
+function pickNext() {
+  if (shouldSpawnVirus()) {
+    nextIsVirus = true;
+    nextLevel = null;
+  } else {
+    nextIsVirus = false;
+    nextLevel = rndSpawnLevel();
+  }
+  updateNextPreview();
+}
+
+function updateNextPreview() {
+  const nc = document.getElementById('next-circle');
+  if (nextIsVirus) {
+    const d = VIRUS_DATA.r * 2;
+    nc.style.width = d + 'px';
+    nc.style.height = d + 'px';
+    nc.style.background = VIRUS_DATA.color;
+    nc.innerHTML = '<svg width="'+d+'" height="'+d+'" viewBox="0 0 28 28"><text x="14" y="20" text-anchor="middle" fill="white" font-size="18">✶</text></svg>';
+  } else {
+    const od = ORGANISM_DATA[nextLevel - 1];
+    const d = od.r * 2;
+    nc.style.width = d + 'px';
+    nc.style.height = d + 'px';
+    nc.style.background = od.color;
+    nc.innerHTML = '';
+  }
+}
+
+function buildHierarchy() {
+  const el = document.getElementById('hierarchy-list');
+  el.innerHTML = '';
+  for (let i = ORGANISM_DATA.length - 1; i >= 0; i--) {
+    const od = ORGANISM_DATA[i];
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    const c = document.createElement('div');
+    c.style.cssText = `width:${od.r*1.1}px;height:${od.r*1.1}px;border-radius:50%;background:${od.color};flex-shrink:0;`;
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:10px;color:var(--color-text-secondary);';
+    lbl.textContent = 'O'+od.level;
+    row.appendChild(c);
+    row.appendChild(lbl);
+    el.appendChild(row);
+  }
+  const vrow = document.createElement('div');
+  vrow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:4px;border-top:0.5px solid var(--color-border-tertiary);padding-top:4px;';
+  const vc = document.createElement('div');
+  vc.style.cssText = `width:${VIRUS_DATA.r*1.1}px;height:${VIRUS_DATA.r*1.1}px;border-radius:50%;background:${VIRUS_DATA.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
+  vc.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14"><text x="7" y="11" text-anchor="middle" fill="white" font-size="12">✶</text></svg>';
+  const vl = document.createElement('span');
+  vl.style.cssText='font-size:10px;color:var(--color-text-secondary);';
+  vl.textContent='Virus';
+  vrow.appendChild(vc); vrow.appendChild(vl);
+  el.appendChild(vrow);
+}
+
+function initPhysics() {
+  engine = Matter.Engine.create({ gravity: { y: 1.5 } });
+  world = engine.world;
+
+  const wallOpts = { isStatic: true, friction: 0.3, restitution: 0.2, render: { visible: false } };
+  const floor = Matter.Bodies.rectangle(CANVAS_W/2, BOWL_BOT + WALL_T/2, BOWL_W, WALL_T, wallOpts);
+  const wallL = Matter.Bodies.rectangle(BOWL_L - WALL_T/2, (BOWL_TOP+BOWL_BOT)/2, WALL_T, BOWL_BOT-BOWL_TOP, wallOpts);
+  const wallR = Matter.Bodies.rectangle(BOWL_R + WALL_T/2, (BOWL_TOP+BOWL_BOT)/2, WALL_T, BOWL_BOT-BOWL_TOP, wallOpts);
+  Matter.World.add(world, [floor, wallL, wallR]);
+}
+
+function createOrganism(x, y, level, isVirus) {
+  const od = isVirus ? VIRUS_DATA : ORGANISM_DATA[level - 1];
+  const body = Matter.Bodies.circle(x, y, od.r, {
+    restitution: 0.3,
+    friction: 0.5,
+    frictionAir: 0.01,
+    density: 0.002,
+    label: isVirus ? 'virus' : 'organism',
+  });
+  body._level = level;
+  body._isVirus = isVirus || false;
+  body._merging = false;
+  body._toRemove = false;
+  body._spawnTime = Date.now();
+  Matter.World.add(world, body);
+  bodies.push(body);
+  return body;
+}
+
+function dropCurrent() {
+  if (!canDrop || gameOver || dropCooldown) return;
+  const clampedX = Math.max(BOWL_L + (nextIsVirus ? VIRUS_DATA.r : ORGANISM_DATA[nextLevel-1].r) + 2,
+                    Math.min(BOWL_R - (nextIsVirus ? VIRUS_DATA.r : ORGANISM_DATA[nextLevel-1].r) - 2, cursorX));
+  createOrganism(clampedX, DROP_Y, nextLevel, nextIsVirus);
+  pickNext();
+  dropCooldown = true;
+  setTimeout(() => { dropCooldown = false; }, 500);
+}
+
+function checkMerges() {
+  const orgs = bodies.filter(b => !b._isVirus && !b._merging && !b._toRemove && b._level < 7);
+  for (let i = 0; i < orgs.length; i++) {
+    for (let j = i+1; j < orgs.length; j++) {
+      const a = orgs[i], b = orgs[j];
+      if (a._level !== b._level) continue;
+      const dx = a.position.x - b.position.x;
+      const dy = a.position.y - b.position.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const ra = ORGANISM_DATA[a._level-1].r;
+      const rb = ORGANISM_DATA[b._level-1].r;
+      if (dist < ra + rb + 2) {
+        a._merging = true; b._merging = true;
+        const mx = (a.position.x + b.position.x)/2;
+        const my = (a.position.y + b.position.y)/2;
+        const newLevel = a._level + 1;
+        mergeQueue.push({ x:mx, y:my, level:newLevel, scoreAdd: newLevel * 10 });
+        a._toRemove = true; b._toRemove = true;
+      }
+    }
+  }
+}
+
+function checkVirusCollisions() {
+  const vs = bodies.filter(b => b._isVirus && !b._toRemove);
+  const os = bodies.filter(b => !b._isVirus && !b._toRemove && !b._merging);
+  for (const v of vs) {
+    for (const o of os) {
+      const dx = v.position.x - o.position.x;
+      const dy = v.position.y - o.position.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < VIRUS_DATA.r + ORGANISM_DATA[o._level-1].r + 1) {
+        v._toRemove = true;
+        if (o._level === 1) {
+          o._toRemove = true;
+        } else {
+          const newLevel = o._level - 1;
+          const px = o.position.x, py = o.position.y;
+          o._toRemove = true;
+          mergeQueue.push({ x:px, y:py, level:newLevel, scoreAdd:0 });
+        }
+      }
+    }
+  }
+}
+
+function processRemovals() {
+  const toRemove = bodies.filter(b => b._toRemove);
+  toRemove.forEach(b => { Matter.World.remove(world, b); });
+  bodies = bodies.filter(b => !b._toRemove);
+}
+
+function processMergeQueue() {
+  mergeQueue.forEach(m => {
+    createOrganism(m.x, m.y, m.level, false);
+    if (m.scoreAdd > 0) {
+      score += m.scoreAdd;
+      if (score > best) best = score;
+      document.getElementById('score-display').textContent = score;
+      document.getElementById('best-display').textContent = best;
+    }
+  });
+  mergeQueue = [];
+}
+
+function checkGameOver() {
+  const danger = bodies.filter(b => !b._isVirus && !b._toRemove && b._spawnTime < Date.now() - 1500);
+  for (const b of danger) {
+    if (b.position.y < DEATH_LINE_Y) {
+      triggerGameOver();
+      return;
+    }
+  }
+}
+
+function triggerGameOver() {
+  gameOver = true;
+  document.getElementById('final-score').textContent = score;
+  const ov = document.getElementById('overlay');
+  ov.style.display = 'flex';
+  const root = document.getElementById('game-root');
+  root.style.position = 'relative';
+}
+
+function restartGame() {
+  bodies.forEach(b => Matter.World.remove(world, b));
+  bodies = [];
+  mergeQueue = [];
+  score = 0;
+  gameOver = false;
+  dropCooldown = false;
+  document.getElementById('score-display').textContent = '0';
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('game-root').style.position = '';
+  pickNext();
+}
+
+function drawScene() {
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.fillStyle = '#1a3a7c';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.save();
+  ctx.beginPath();
+  const bw = BOWL_W, bh = BOWL_BOT - BOWL_TOP;
+  const r = 24;
+  ctx.moveTo(BOWL_L, BOWL_TOP);
+  ctx.lineTo(BOWL_R, BOWL_TOP);
+  ctx.lineTo(BOWL_R, BOWL_BOT - r);
+  ctx.quadraticCurveTo(BOWL_R, BOWL_BOT, BOWL_R - r, BOWL_BOT);
+  ctx.lineTo(BOWL_L + r, BOWL_BOT);
+  ctx.quadraticCurveTo(BOWL_L, BOWL_BOT, BOWL_L, BOWL_BOT - r);
+  ctx.lineTo(BOWL_L, BOWL_TOP);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(100,130,220,0.25)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(180,200,255,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.setLineDash([4,6]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(BOWL_L, DEATH_LINE_Y);
+  ctx.lineTo(BOWL_R, DEATH_LINE_Y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  if (!gameOver) {
+    const od = nextIsVirus ? VIRUS_DATA : ORGANISM_DATA[nextLevel - 1];
+    const cx = Math.max(BOWL_L + od.r + 2, Math.min(BOWL_R - od.r - 2, cursorX));
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(BOWL_L + 10, DROP_Y);
+    ctx.lineTo(BOWL_R - 10, DROP_Y);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, DROP_Y, od.r, 0, Math.PI*2);
+    ctx.fillStyle = od.color;
+    ctx.fill();
+
+    if (nextIsVirus) {
+      ctx.fillStyle = 'white';
+      ctx.font = `${od.r}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✶', cx, DROP_Y);
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(cx - od.r - 8, DROP_Y);
+    ctx.lineTo(cx - od.r - 2, DROP_Y);
+    ctx.moveTo(cx + od.r + 2, DROP_Y);
+    ctx.lineTo(cx + od.r + 8, DROP_Y);
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  for (const body of bodies) {
+    const pos = body.position;
+    const od = body._isVirus ? VIRUS_DATA : ORGANISM_DATA[body._level - 1];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, od.r, 0, Math.PI*2);
+    ctx.fillStyle = od.color;
+    ctx.fill();
+    if (body._isVirus) {
+      ctx.fillStyle = 'white';
+      ctx.font = `${od.r * 1.2}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✶', pos.x, pos.y);
+    }
+    ctx.restore();
+  }
+}
+
+let lastTime = 0;
+function gameLoop(ts) {
+  const dt = Math.min(ts - lastTime, 50);
+  lastTime = ts;
+  if (!gameOver) {
+    Matter.Engine.update(engine, dt);
+    checkMerges();
+    checkVirusCollisions();
+    processRemovals();
+    processMergeQueue();
+    checkGameOver();
+  }
+  drawScene();
+  requestAnimationFrame(gameLoop);
+}
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  cursorX = (e.clientX - rect.left) * (CANVAS_W / rect.width);
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  cursorX = (e.touches[0].clientX - rect.left) * (CANVAS_W / rect.width);
+}, { passive: false });
+canvas.addEventListener('click', dropCurrent);
+canvas.addEventListener('touchend', e => { e.preventDefault(); dropCurrent(); }, { passive: false });
+
+buildHierarchy();
+initPhysics();
+pickNext();
+requestAnimationFrame(gameLoop);
+</script>

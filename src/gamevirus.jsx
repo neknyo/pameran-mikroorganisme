@@ -2,13 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import Matter from 'matter-js';
 
 const ORGANISM_DATA = [
-  { level: 1, r: 14, color: '#e53e3e', label: '1' },
-  { level: 2, r: 20, color: '#d53f8c', label: '2' },
-  { level: 3, r: 28, color: '#00b5d8', label: '3' },
-  { level: 4, r: 37, color: '#38a169', label: '4' },
-  { level: 5, r: 47, color: '#d69e2e', label: '5' },
-  { level: 6, r: 58, color: '#dd6b20', label: '6' },
-  { level: 7, r: 70, color: '#c53030', label: '7' },
+  { level: 1, r: 14, color: '#e53e3e', label: 'O1' },
+  { level: 2, r: 20, color: '#d53f8c', label: 'O2' },
+  { level: 3, r: 28, color: '#00b5d8', label: 'O3' },
+  { level: 4, r: 37, color: '#38a169', label: 'O4' },
+  { level: 5, r: 47, color: '#d69e2e', label: 'O5' },
+  { level: 6, r: 58, color: '#dd6b20', label: 'O6' },
+  { level: 7, r: 70, color: '#c53030', label: 'O7' },
 ];
 const VIRUS_DATA = { r: 14, color: '#1a202c', label: 'V' };
 const SPAWNABLE_LEVELS = [1, 2, 3, 4];
@@ -29,13 +29,13 @@ export default function GameVirus() {
   const engineRef = useRef(null);
   const requestRef = useRef(null);
 
-  // UI state
+  // UI State
   const [score, setScore] = useState(0);
   const [bestScore, setBestScore] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
   const [nextItem, setNextItem] = useState({ isVirus: false, level: 1 });
 
-  //gamesatete
+  // Game Mutable State (Bypassing React state for physics performance)
   const gameState = useRef({
     score: 0,
     best: 0,
@@ -55,7 +55,7 @@ export default function GameVirus() {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
-    //init physics
+    // 1. Init Physics
     const engine = Matter.Engine.create({ gravity: { y: 1.5 } });
     engineRef.current = engine;
     const world = engine.world;
@@ -66,6 +66,7 @@ export default function GameVirus() {
     const wallR = Matter.Bodies.rectangle(BOWL_R + WALL_T / 2, (BOWL_TOP + BOWL_BOT) / 2, WALL_T, BOWL_BOT - BOWL_TOP, wallOpts);
     Matter.World.add(world, [floor, wallL, wallR]);
 
+    // 2. Helper Functions
     const pickNext = () => {
       const isVirus = Math.random() < 0.15;
       const level = isVirus ? null : SPAWNABLE_LEVELS[Math.floor(Math.random() * SPAWNABLE_LEVELS.length)];
@@ -98,7 +99,7 @@ export default function GameVirus() {
       setIsGameOver(true);
     };
 
-    //gameloop
+    // 3. Game Loop Logic
     const gameLoop = (ts) => {
       const state = gameState.current;
       const dt = Math.min(ts - state.lastTime, 50);
@@ -107,7 +108,7 @@ export default function GameVirus() {
       if (!state.gameOver) {
         Matter.Engine.update(engine, dt);
 
-        //gabungin
+        // Check Merges
         const orgs = state.bodies.filter((b) => !b._isVirus && !b._merging && !b._toRemove && b._level < 7);
         for (let i = 0; i < orgs.length; i++) {
           for (let j = i + 1; j < orgs.length; j++) {
@@ -129,7 +130,7 @@ export default function GameVirus() {
           }
         }
 
-        //virus mech
+        // Check Virus Collisions
         const vs = state.bodies.filter((b) => b._isVirus && !b._toRemove);
         const os = state.bodies.filter((b) => !b._isVirus && !b._toRemove && !b._merging);
         for (const v of vs) {
@@ -150,6 +151,7 @@ export default function GameVirus() {
           }
         }
 
+        // Process Removals & Merges
         const toRemove = state.bodies.filter((b) => b._toRemove);
         toRemove.forEach((b) => Matter.World.remove(world, b));
         state.bodies = state.bodies.filter((b) => !b._toRemove);
@@ -165,7 +167,7 @@ export default function GameVirus() {
         });
         state.mergeQueue = [];
 
-        // check gameover
+        // Check Game Over
         const danger = state.bodies.filter((b) => !b._isVirus && !b._toRemove && b._spawnTime < Date.now() - 1500);
         for (const b of danger) {
           if (b.position.y < DEATH_LINE_Y) {
@@ -175,11 +177,12 @@ export default function GameVirus() {
         }
       }
 
-
+      // Draw Scene
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
       ctx.fillStyle = '#1a3a7c';
       ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
+      // Draw Bowl
       ctx.save();
       ctx.beginPath();
       const r = 24;
@@ -198,6 +201,7 @@ export default function GameVirus() {
       ctx.stroke();
       ctx.restore();
 
+      // Draw Death Line
       ctx.save();
       ctx.strokeStyle = 'rgba(255,255,255,0.15)';
       ctx.setLineDash([4, 6]);
@@ -207,7 +211,8 @@ export default function GameVirus() {
       ctx.lineTo(BOWL_R, DEATH_LINE_Y);
       ctx.stroke();
       ctx.restore();
-      // next
+
+      // Draw Prediction Line & Next Item
       if (!state.gameOver) {
         const od = state.nextIsVirus ? VIRUS_DATA : ORGANISM_DATA[state.nextLevel - 1];
         const cx = Math.max(BOWL_L + od.r + 2, Math.min(BOWL_R - od.r - 2, state.cursorX));
@@ -234,6 +239,7 @@ export default function GameVirus() {
         ctx.restore();
       }
 
+      // Draw Bodies
       for (const body of state.bodies) {
         const pos = body.position;
         const od = body._isVirus ? VIRUS_DATA : ORGANISM_DATA[body._level - 1];
@@ -255,7 +261,7 @@ export default function GameVirus() {
       requestRef.current = requestAnimationFrame(gameLoop);
     };
 
-    //event listeners
+    // 4. Event Listeners
     const handleMove = (e) => {
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -281,9 +287,12 @@ export default function GameVirus() {
     canvas.addEventListener('touchmove', handleMove, { passive: false });
     canvas.addEventListener('click', handleDrop);
     canvas.addEventListener('touchend', handleDrop, { passive: false });
-    //init
+
+    // Start
     pickNext();
     requestRef.current = requestAnimationFrame(gameLoop);
+
+    // Cleanup
     return () => {
       cancelAnimationFrame(requestRef.current);
       Matter.Engine.clear(engine);
@@ -294,7 +303,7 @@ export default function GameVirus() {
     };
   }, []);
 
-  //restart handler
+  // Restart Handler
   const handleRestart = () => {
     const state = gameState.current;
     state.bodies.forEach((b) => Matter.World.remove(engineRef.current.world, b));
@@ -307,6 +316,7 @@ export default function GameVirus() {
     setScore(0);
     setIsGameOver(false);
     
+    // Pick new initial item
     const isVirus = Math.random() < 0.15;
     const level = isVirus ? null : SPAWNABLE_LEVELS[Math.floor(Math.random() * SPAWNABLE_LEVELS.length)];
     state.nextIsVirus = isVirus;
@@ -317,6 +327,7 @@ export default function GameVirus() {
   return (
     <div className="flex gap-6 p-4 min-h-[600px] font-sans bg-transparent relative w-fit mx-auto">
       
+      {/* Sidebar Kiri */}
       <div className="flex flex-col gap-3">
         <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4 min-w-[120px] shadow-sm">
           <div className="text-xs text-gray-400 mb-1">Score</div>
@@ -363,7 +374,8 @@ export default function GameVirus() {
           </div>
         </div>
       </div>
-        {/*canvas*/}
+
+      {/* Area Canvas */}
       <div className="flex flex-col items-center">
         <canvas
           ref={canvasRef}
@@ -376,6 +388,7 @@ export default function GameVirus() {
         </div>
       </div>
 
+      {/* Modal Game Over */}
       {isGameOver && (
         <div className="absolute top-0 left-0 w-full h-full bg-black/60 z-50 flex items-center justify-center rounded-xl backdrop-blur-sm">
           <div className="bg-gray-900 border border-white/10 rounded-xl p-8 text-center min-w-[220px] shadow-2xl">
