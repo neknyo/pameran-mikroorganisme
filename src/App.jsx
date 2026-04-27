@@ -323,6 +323,17 @@ export default function GameVirus() {
           <div className="text-2xl font-medium text-white">{score}</div>
           <div className="text-[11px] text-gray-500 mt-1">Best: {bestScore}</div>
         </div>
+        <div className="flex flex-col items-center">
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          className="rounded-xl block cursor-crosshair touch-none shadow-lg"
+        />
+        <div className="text-[13px] text-gray-400 mt-2 text-center">
+          kiri kanan, tap buat drop
+        </div>
+      </div>
 
         <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4 shadow-sm">
           <div className="text-xs text-gray-400 mb-2">Next up</div>
@@ -353,7 +364,7 @@ export default function GameVirus() {
             {[...ORGANISM_DATA].reverse().map((od) => (
               <div key={od.level} className="flex items-center gap-2 w-full">
                 <div className="rounded-full shrink-0" style={{ width: od.r * 1.1, height: od.r * 1.1, backgroundColor: od.color }} />
-                <span className="text-[10px] text-gray-400">O{od.level}</span>
+                <span className="text-[10px] text-gray-400">aunuan ke-{od.level}</span>
               </div>
             ))}
             <div className="flex items-center gap-2 w-full mt-1 border-t border-white/10 pt-1">
@@ -363,18 +374,7 @@ export default function GameVirus() {
           </div>
         </div>
       </div>
-        {/*canvas*/}
-      <div className="flex flex-col items-center">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="rounded-xl block cursor-crosshair touch-none shadow-lg"
-        />
-        <div className="text-[13px] text-gray-400 mt-2 text-center">
-          kiri kanan, tap buat drop
-        </div>
-      </div>
+      
 
       {isGameOver && (
         <div className="absolute top-0 left-0 w-full h-full bg-black/60 z-50 flex items-center justify-center rounded-xl backdrop-blur-sm">
