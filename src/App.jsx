@@ -2,9 +2,10 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import Home from './home';
-import Game from './game';
+import Game from './moGame';
 import Login from './login';
-import Counter from './counter';
+import Counter from './moCounter';
+import About from './moAbout';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/game" element={<Game />} />
         <Route path="/counter" element={<Counter />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/about" element={<About />} />
       </Routes>
     </BrowserRouter>
   );

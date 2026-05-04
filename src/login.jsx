@@ -56,7 +56,7 @@ export default function RegPanel() {
             borderRadius: '4px'
           }}
         >
-          ← Home
+          Home
         </button>
 
         {/* Kotak Form */}

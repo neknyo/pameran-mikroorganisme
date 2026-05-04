@@ -298,108 +298,128 @@ export default function GameVirus() {
 
   //restart handler
   const handleRestart = () => {
-    const state = gameState.current;
-    state.bodies.forEach((b) => Matter.World.remove(engineRef.current.world, b));
-    state.bodies = [];
-    state.mergeQueue = [];
-    state.score = 0;
-    state.gameOver = false;
-    state.dropCooldown = false;
-    
-    setScore(0);
-    setIsGameOver(false);
-    
-    const isVirus = Math.random() < 0.15;
-    const level = isVirus ? null : SPAWNABLE_LEVELS[Math.floor(Math.random() * SPAWNABLE_LEVELS.length)];
-    state.nextIsVirus = isVirus;
-    state.nextLevel = level;
-    setNextItem({ isVirus, level });
-  };
+  const state = gameState.current;
+  state.bodies.forEach((b) => Matter.World.remove(engineRef.current.world, b));
+  state.bodies = [];
+  state.mergeQueue = [];
+  state.score = 0;
+  state.gameOver = false;
+  state.dropCooldown = false;
 
-  return (
-    <div className="flex gap-6 p-4 min-h-[600px] font-sans bg-transparent relative w-fit mx-auto">
-      
-      <div style={{ width: '100%', maxWidth: '900px', marginBottom: '20px' }}>
-        <button onClick={() => navigate('/')} style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', backgroundImage: 'linear-gradient(to bottom, #f0f0f0, #a0a0a0)', border: 'none', fontWeight: 'bold', color: 'black' }}>
-          Home
-        </button>
-      </div>
-      
-      <div className="flex flex-col gap-3">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4 min-w-[120px] shadow-sm">
-          <div className="text-xs text-gray-400 mb-1">Score</div>
-          <div className="text-2xl font-medium text-white">{score}</div>
-          <div className="text-[11px] text-gray-500 mt-1">Best: {bestScore}</div>
-        </div>
-        <div className="flex flex-col items-center">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="rounded-xl block cursor-crosshair touch-none shadow-lg"
-        />
-        <div className="text-[13px] text-gray-400 mt-2 text-center">
-          kiri kanan, tap buat drop
-        </div>
+  setScore(0);
+  setIsGameOver(false);
+
+  const isVirus = Math.random() < 0.15;
+  const level = isVirus ? null : SPAWNABLE_LEVELS[Math.floor(Math.random() * SPAWNABLE_LEVELS.length)];
+  state.nextIsVirus = isVirus;
+  state.nextLevel = level;
+  setNextItem({ isVirus, level });
+  // hapus "const Width = 200" yang tidak dipakai
+};
+
+return (
+  <div style={{ fontFamily: 'monospace', minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'left', padding: '16px', gap: '12px', boxSizing: 'border-box' }}>
+
+    {/* ===== KIRI: Score + Leaderboard ===== */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '140px', flexShrink: 0, paddingTop: '4px' }}>
+      {/* Score */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4">
+        <div className="text-xs text-gray-400 mb-1">Score</div>
+        <div className="text-2xl font-medium text-white">{score}</div>
+        <div className="text-[11px] text-gray-500 mt-1">Best: {bestScore}</div>
       </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4 shadow-sm">
-          <div className="text-xs text-gray-400 mb-2">Next up</div>
-          <div className="w-[60px] h-[60px] flex items-center justify-center">
-            {nextItem.isVirus ? (
-              <div
-                className="rounded-full flex items-center justify-center text-white"
-                style={{ width: VIRUS_DATA.r * 2, height: VIRUS_DATA.r * 2, backgroundColor: VIRUS_DATA.color }}
-              >
-                ✶
-              </div>
-            ) : (
-              <div
-                className="rounded-full"
-                style={{
-                  width: ORGANISM_DATA[(nextItem.level || 1) - 1].r * 2,
-                  height: ORGANISM_DATA[(nextItem.level || 1) - 1].r * 2,
-                  backgroundColor: ORGANISM_DATA[(nextItem.level || 1) - 1].color,
-                }}
-              />
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4 shadow-sm">
-          <div className="text-xs text-gray-400 mb-2">hierarki</div>
-          <div className="flex flex-col gap-1.5 items-center">
-            {[...ORGANISM_DATA].reverse().map((od) => (
-              <div key={od.level} className="flex items-center gap-2 w-full">
-                <div className="rounded-full shrink-0" style={{ width: od.r * 1.1, height: od.r * 1.1, backgroundColor: od.color }} />
-                <span className="text-[10px] text-gray-400">aunuan ke-{od.level}</span>
-              </div>
-            ))}
-            <div className="flex items-center gap-2 w-full mt-1 border-t border-white/10 pt-1">
-              <div className="rounded-full shrink-0 flex items-center justify-center text-white text-[10px]" style={{ width: VIRUS_DATA.r * 1.1, height: VIRUS_DATA.r * 1.1, backgroundColor: VIRUS_DATA.color }}>✶</div>
-              <span className="text-[10px] text-gray-400">virus</span>
+      {/* Leaderboard */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4 flex-1" style={{ minHeight: '280px' }}>
+        <div className="text-xs text-gray-400 mb-3 uppercase tracking-wide">Leaderboard</div>
+        <div className="flex flex-col gap-1.5">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="h-6 bg-white/[0.04] rounded-md flex items-center px-2 gap-2">
+              <span className="text-[9px] text-gray-600 w-3">{i}.</span>
+              <div className="h-1.5 bg-white/[0.06] rounded" style={{ width: `${60 - i * 8}%` }} />
             </div>
-          </div>
+          ))}
         </div>
-        <h3>page is WIP</h3>
+        <div className="text-[9px] text-gray-700 italic text-center mt-3">coming soon</div>
       </div>
-      
+    </div>
 
-      {isGameOver && (
-        <div className="absolute top-0 left-0 w-full h-full bg-black/60 z-50 flex items-center justify-center rounded-xl backdrop-blur-sm">
-          <div className="bg-gray-900 border border-white/10 rounded-xl p-8 text-center min-w-[220px] shadow-2xl">
-            <div className="text-xl font-medium text-white mb-2">game over tetot!</div>
-            <div className="text-[13px] text-gray-400 mb-1">score:</div>
-            <div className="text-4xl font-medium text-white mb-4">{score}</div>
-            <button
-              onClick={handleRestart}
-              className="px-6 py-2.5 rounded-lg border border-gray-600 bg-gray-800 text-white text-sm hover:bg-gray-700 transition-colors"
-            >
-              lagi
-            </button>
+    {/* ===== TENGAH: Game Canvas ===== */}
+    <div className="flex flex-col items-center gap-2">
+      <button
+        onClick={() => navigate('/')}
+        style={{ alignSelf: 'flex-start', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', backgroundImage: 'linear-gradient(to bottom, #f0f0f0, #a0a0a0)', border: 'none', fontWeight: 'bold', color: 'black', marginBottom: '2px' }}
+      >
+        Home
+      </button>
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_W}
+        height={CANVAS_H}
+        className="rounded-xl block cursor-crosshair touch-none shadow-lg"
+      />
+      <div className="text-[13px] text-gray-400 text-center">kiri kanan, tap buat drop</div>
+    </div>
+
+    {/* ===== KANAN: Next up + Hierarki + Kotak kosong ===== */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '140px', flexShrink: 0, paddingTop: '36px' }}>
+      {/* Next up */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4">
+        <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Next up</div>
+        <div className="w-[60px] h-[60px] flex items-center justify-center">
+          {nextItem.isVirus ? (
+            <div className="rounded-full flex items-center justify-center text-white"
+              style={{ width: VIRUS_DATA.r * 2, height: VIRUS_DATA.r * 2, backgroundColor: VIRUS_DATA.color }}>
+              ✶
+            </div>
+          ) : (
+            <div className="rounded-full"
+              style={{
+                width: ORGANISM_DATA[(nextItem.level || 1) - 1].r * 2,
+                height: ORGANISM_DATA[(nextItem.level || 1) - 1].r * 2,
+                backgroundColor: ORGANISM_DATA[(nextItem.level || 1) - 1].color,
+              }} />
+          )}
+        </div>
+      </div>
+
+      {/* Hierarki */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4">
+        <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Hierarki</div>
+        <div className="flex flex-col gap-1.5 items-start">
+          {[...ORGANISM_DATA].reverse().map((od) => (
+            <div key={od.level} className="flex items-center gap-2 w-full">
+              <div className="rounded-full shrink-0" style={{ width: od.r * 1.1, height: od.r * 1.1, backgroundColor: od.color }} />
+              <span className="text-[9px] text-gray-400">aunuan ke-{od.level}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 w-full mt-1 pt-1 border-t border-white/10">
+            <div className="rounded-full shrink-0 flex items-center justify-center text-white text-[8px]"
+              style={{ width: VIRUS_DATA.r * 1.1, height: VIRUS_DATA.r * 1.1, backgroundColor: VIRUS_DATA.color }}>✶</div>
+            <span className="text-[9px] text-gray-400">virus</span>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Kotak kosong */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-3 px-4 flex-1" style={{ minHeight: '100px' }}>
+        <div className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Info</div>
+        <div className="text-[9px] text-gray-700 italic text-center mt-4">coming soon</div>
+      </div>
     </div>
-  );
-}
+
+    {/* Modal Game Over */}
+    {isGameOver && (
+      <div className="absolute top-0 left-0 w-full h-full bg-black/60 z-50 flex items-center justify-center rounded-xl backdrop-blur-sm">
+        <div className="bg-gray-900 border border-white/10 rounded-xl p-8 text-center min-w-[220px] shadow-2xl">
+          <div className="text-xl font-medium text-white mb-2">game over tetot!</div>
+          <div className="text-[13px] text-gray-400 mb-1">score:</div>
+          <div className="text-4xl font-medium text-white mb-4">{score}</div>
+          <button onClick={handleRestart} className="px-6 py-2.5 rounded-lg border border-gray-600 bg-gray-800 text-white text-sm hover:bg-gray-700 transition-colors">
+            lagi
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+);}
