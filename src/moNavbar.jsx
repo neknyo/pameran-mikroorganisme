@@ -66,7 +66,6 @@ export default function Navbar() {
         <a href="#wip" className="nav-link">Games</a>
       </div>
 
-      {/* Bagian Kanan: Tombol Action (Sekarang statis tanpa animasi) */}
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
         
         {/* Tombol Login */}
@@ -82,7 +81,7 @@ export default function Navbar() {
           Login
         </button>
 
-        {/* Tombol Hamburger Menu */}
+        {/*Hamburger  */}
         <button 
           className="nav-btn"
           style={{

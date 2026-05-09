@@ -6,6 +6,9 @@ import Game from './moGame';
 import Login from './login';
 import Counter from './moCounter';
 import About from './moAbout';
+import Uploadkarya from './uploadkarya';
+import Tiket from './tiket';
+
 
 export default function App() {
   return (
@@ -16,6 +19,8 @@ export default function App() {
         <Route path="/counter" element={<Counter />} />
         <Route path="/login" element={<Login />} />
         <Route path="/about" element={<About />} />
+        <Route path="/tiket" element={<Tiket />} />
+        <Route path="/uploadkarya" element={<Uploadkarya/>} />
       </Routes>
     </BrowserRouter>
   );

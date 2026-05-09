@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Import semua modul komponen (pastikan path './' sesuai dengan struktur foldermu)
 import Navbar from './moNavbar';
 import Counter from './moCounter';
 import About from './moAbout';

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 const INITIAL_SCORES = [
+  //cuma placeholder aja, nanti pindahin top 5 dari supabase
   { id: 1, name: "Musganteng_", score: 13323, avatar: "M" },
   { id: 2, name: "Andindindun", score: 12002, avatar: "A" },
   { id: 3, name: "Eyen Yeager", score: 10823, avatar: "E" },
@@ -294,7 +295,7 @@ export default function GameSection() {
             onMouseLeave={() => { setBtnHover(false); setBtnPress(false); }}
             onMouseDown={() => setBtnPress(true)}
             onMouseUp={() => setBtnPress(false)}
-            onClick={() => window.open("rsvp_thing")}
+            onClick={() => window.open("game")}
             style={{
           fontFamily: "'DM Sans', sans-serif",
           fontSize: 13,
